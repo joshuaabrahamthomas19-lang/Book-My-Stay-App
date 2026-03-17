@@ -1,5 +1,9 @@
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 
 class Reservation {
     private String guestName;
@@ -17,63 +21,63 @@ class Reservation {
     public String getRoomType() {
         return roomType;
     }
-
-    @Override
-    public String toString() {
-        return "Reservation Request -> Guest: " + guestName + " | Room: " + roomType;
-    }
 }
 
-class BookingRequestQueue {
-    private Queue<Reservation> requestQueue;
+class RoomAllocationService {
+    private Map<String, Integer> availableRooms;
+    private Map<String, Set<String>> allocatedRooms;
 
-    public BookingRequestQueue() {
-        this.requestQueue = new LinkedList<>();
+    public RoomAllocationService() {
+        availableRooms = new HashMap<>();
+        availableRooms.put("Single", 2);
+
+        allocatedRooms = new HashMap<>();
+        allocatedRooms.put("Single", new LinkedHashSet<>());
     }
 
-    public void addRequest(Reservation request) {
-        requestQueue.offer(request);
-        System.out.println("Queued: " + request.getGuestName() + " is waiting for a " + request.getRoomType());
-    }
+    public void allocateRoom(Reservation request) {
+        String roomType = request.getRoomType();
+        int availableCount = availableRooms.getOrDefault(roomType, 0);
 
-    public boolean hasPendingRequest() {
-        return !requestQueue.isEmpty();
-    }
+        if (availableCount > 0) {
+            Set<String> allocated = allocatedRooms.get(roomType);
+            String roomId = roomType.substring(0, 3).toUpperCase() + "-" + (100 + allocated.size() + 1);
 
-    public Reservation getNextRequest() {
-        return requestQueue.poll();
-    }
+            availableRooms.put(roomType, availableCount - 1);
+            allocated.add(roomId);
 
-    public void displayQueue() {
-        System.out.println("\n--- Current Booking Queue (FIFO Order) ---");
-        if (requestQueue.isEmpty()) {
-            System.out.println("The queue is empty.");
+            System.out.println("ALLOCATED: " + request.getGuestName() + " assigned Room ID: " + roomId);
         } else {
-            for (Reservation res : requestQueue) {
-                System.out.println(res);
-            }
+            System.out.println("FAILED: No " + roomType + " rooms available for " + request.getGuestName());
+        }
+    }
+
+    public void displayAllocationReport() {
+        System.out.println("\n--- Final Allocation Report ---");
+        for (Map.Entry<String, Set<String>> entry : allocatedRooms.entrySet()) {
+            System.out.println(entry.getKey() + " Rooms Allocated: " + entry.getValue());
         }
     }
 }
 
-public class BookMyStayApp {
+public class BookMyStayApp  {
     public static void main(String[] args) {
-        System.out.println("--- Hotel Booking System UC5: Request Intake ---\n");
+        System.out.println("--- Hotel Booking System UC6: Room Allocation ---\n");
 
-        BookingRequestQueue queueSystem = new BookingRequestQueue();
+        RoomAllocationService allocationService = new RoomAllocationService();
+        Queue<Reservation> requestQueue = new LinkedList<>();
 
-        queueSystem.addRequest(new Reservation("Alice", "Single"));
-        queueSystem.addRequest(new Reservation("Bob", "Double"));
-        queueSystem.addRequest(new Reservation("Charlie", "Suite"));
+        requestQueue.offer(new Reservation("Alice", "Single"));
+        requestQueue.offer(new Reservation("Bob", "Single"));
+        requestQueue.offer(new Reservation("Charlie", "Single"));
 
-        queueSystem.displayQueue();
+        System.out.println("Processing " + requestQueue.size() + " queued requests...\n");
 
-        System.out.println("\n[System Note]: Requests are stored. No inventory mutation has occurred at this stage.");
-
-        System.out.println("\n--- Processing Requests ---");
-        while (queueSystem.hasPendingRequest()) {
-            Reservation next = queueSystem.getNextRequest();
-            System.out.println("Processing: " + next.getGuestName());
+        while (!requestQueue.isEmpty()) {
+            Reservation request = requestQueue.poll();
+            allocationService.allocateRoom(request);
         }
+
+        allocationService.displayAllocationReport();
     }
 }
