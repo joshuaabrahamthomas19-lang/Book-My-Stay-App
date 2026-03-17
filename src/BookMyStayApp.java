@@ -63,7 +63,7 @@ class BookingValidator {
     }
 }
 
-public class UseCase9ErrorHandlingValidation {
+public class BookMyStayApp {
     public static void main(String[] args) {
         System.out.println("Error Handling and Validation");
         System.out.println("-----------------------------\n");
