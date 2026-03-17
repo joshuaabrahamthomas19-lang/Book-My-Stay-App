@@ -1,9 +1,41 @@
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
+
+class RoomAllocationService {
+
+    // Stores all allocated room IDs to prevent duplicate assignments.
+    private Set<String> allocatedRoomIds;
+
+    // Key -> Room type | Value -> Set of assigned room IDs
+    private Map<String, Set<String>> assignedRoomsByType;
+
+    public RoomAllocationService() {
+        this.allocatedRoomIds = new HashSet<>();
+        this.assignedRoomsByType = new HashMap<>();
+    }
+
+    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+        String roomType = reservation.getRoomType();
+
+        // Generate a unique ID (e.g., Single-1)
+        String roomId = generateRoomId(roomType);
+
+        // Update tracking structures
+        allocatedRoomIds.add(roomId);
+        assignedRoomsByType.computeIfAbsent(roomType, k -> new HashSet<>()).add(roomId);
+
+        // Update the centralized inventory
+        inventory.reduceInventory(roomType);
+
+        System.out.println("Booking confirmed for Guest: " + reservation.getGuestName() +
+                ", Room ID: " + roomId);
+    }
+    
+    private String generateRoomId(String roomType) {
+        // Find how many rooms of this type are already assigned and add 1
+        int currentCount = assignedRoomsByType.getOrDefault(roomType, new HashSet<>()).size();
+        return roomType + "-" + (currentCount + 1);
+    }
+}
 
 class Reservation {
     private String guestName;
@@ -14,70 +46,48 @@ class Reservation {
         this.roomType = roomType;
     }
 
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public String getRoomType() {
-        return roomType;
-    }
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
 }
 
-class RoomAllocationService {
-    private Map<String, Integer> availableRooms;
-    private Map<String, Set<String>> allocatedRooms;
+/**
+ * Model representing the Centralized Room Inventory
+ */
+class RoomInventory {
+    private Map<String, Integer> stock = new HashMap<>();
 
-    public RoomAllocationService() {
-        availableRooms = new HashMap<>();
-        availableRooms.put("Single", 2);
-
-        allocatedRooms = new HashMap<>();
-        allocatedRooms.put("Single", new LinkedHashSet<>());
+    public void addStock(String type, int count) {
+        stock.put(type, count);
     }
 
-    public void allocateRoom(Reservation request) {
-        String roomType = request.getRoomType();
-        int availableCount = availableRooms.getOrDefault(roomType, 0);
-
-        if (availableCount > 0) {
-            Set<String> allocated = allocatedRooms.get(roomType);
-            String roomId = roomType.substring(0, 3).toUpperCase() + "-" + (100 + allocated.size() + 1);
-
-            availableRooms.put(roomType, availableCount - 1);
-            allocated.add(roomId);
-
-            System.out.println("ALLOCATED: " + request.getGuestName() + " assigned Room ID: " + roomId);
-        } else {
-            System.out.println("FAILED: No " + roomType + " rooms available for " + request.getGuestName());
-        }
-    }
-
-    public void displayAllocationReport() {
-        System.out.println("\n--- Final Allocation Report ---");
-        for (Map.Entry<String, Set<String>> entry : allocatedRooms.entrySet()) {
-            System.out.println(entry.getKey() + " Rooms Allocated: " + entry.getValue());
+    public void reduceInventory(String type) {
+        if (stock.containsKey(type) && stock.get(type) > 0) {
+            stock.put(type, stock.get(type) - 1);
         }
     }
 }
 
-public class BookMyStayApp  {
+public class UseCase6RoomAllocation {
+
     public static void main(String[] args) {
-        System.out.println("--- Hotel Booking System UC6: Room Allocation ---\n");
+        System.out.println("Room Allocation Processing");
 
+        // 1. Setup Service and Inventory
         RoomAllocationService allocationService = new RoomAllocationService();
-        Queue<Reservation> requestQueue = new LinkedList<>();
+        RoomInventory inventory = new RoomInventory();
+        inventory.addStock("Single", 10);
+        inventory.addStock("Suite", 5);
 
-        requestQueue.offer(new Reservation("Alice", "Single"));
-        requestQueue.offer(new Reservation("Bob", "Single"));
-        requestQueue.offer(new Reservation("Charlie", "Single"));
+        // 2. Initialize FIFO Queue for Booking Requests
+        Queue<Reservation> bookingRequests = new LinkedList<>();
+        bookingRequests.add(new Reservation("Abhi", "Single"));
+        bookingRequests.add(new Reservation("Subha", "Single"));
+        bookingRequests.add(new Reservation("Vanmathi", "Suite"));
 
-        System.out.println("Processing " + requestQueue.size() + " queued requests...\n");
-
-        while (!requestQueue.isEmpty()) {
-            Reservation request = requestQueue.poll();
-            allocationService.allocateRoom(request);
+        // 3. Process requests until the queue is empty
+        while (!bookingRequests.isEmpty()) {
+            Reservation currentRequest = bookingRequests.poll();
+            allocationService.allocateRoom(currentRequest, inventory);
         }
-
-        allocationService.displayAllocationReport();
     }
 }
